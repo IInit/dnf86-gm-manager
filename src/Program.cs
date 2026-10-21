@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 
 namespace DNF86GM;
@@ -55,6 +57,60 @@ internal static class Program
             var txt = f.FacetTest();
             File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "facet-test.txt"), txt, Encoding.UTF8);
             f.Close();
+            return;
+        }
+
+        // 本地端口占用自检：--porttest [首选端口]
+        // 先占住首选端口，验证探测/顺延逻辑；配置里有服务器与私钥时再跑一次真实隧道，
+        // 确认整条链路能在「首选端口被占」的情况下连上，而不是抛 WinSock 10048。
+        if (args.Length > 0 && args[0].Equals("--porttest", StringComparison.OrdinalIgnoreCase))
+        {
+            var sb = new StringBuilder();
+            void W(string s) => sb.AppendLine(s);
+
+            int pref = args.Length > 1 ? int.Parse(args[1]) : 3307;
+            var hold = new TcpListener(IPAddress.Loopback, pref);
+            try
+            {
+                hold.Start();
+                W($"占住 127.0.0.1:{pref}");
+                W($"IsPortFree({pref}) = {SshTunnel.IsPortFree(pref)}（期望 False）");
+                int p = SshTunnel.PickFreePort(pref);
+                W($"PickFreePort({pref}) = {p}（期望 != {pref}）");
+                W($"该端口可用 = {SshTunnel.IsPortFree(p)}（期望 True）");
+
+                // 真实隧道：首选端口仍被占着，必须自动顺延并成功
+                var cfg = AppConfig.Load();
+                if (string.IsNullOrWhiteSpace(cfg.SshHost) || KeyStore.Resolve(cfg).Kind == "")
+                {
+                    W("跳过真实隧道测试：配置里没有服务器地址或私钥");
+                }
+                else
+                {
+                    using var t = new SshTunnel();
+                    bool ok = t.Start(cfg);
+                    W($"隧道 Start（首选端口被占） = {ok}（期望 True）");
+                    W($"实际端口 = {(t.LocalPort == 0 ? "-" : t.LocalPort.ToString())}（期望 != {pref}，且可用）");
+                    W($"提示语 = {(string.IsNullOrEmpty(t.LastNote) ? "-" : t.LastNote)}");
+                    W($"错误 = {(string.IsNullOrEmpty(t.LastError) ? "-" : t.LastError)}");
+                    if (ok)
+                    {
+                        cfg.DbHost = "127.0.0.1";
+                        cfg.DbPort = t.LocalPort;
+                        W("经该端口连库 = " + new Db(cfg).TestConnection());
+                    }
+                }
+            }
+            finally
+            {
+                hold.Stop();
+            }
+
+            W($"释放后 IsPortFree({pref}) = {SshTunnel.IsPortFree(pref)}（期望 True）");
+            W($"释放后 PickFreePort({pref}) = {SshTunnel.PickFreePort(pref)}（期望 == {pref}）");
+
+            File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "port-test.txt"),
+                sb.ToString(), Encoding.UTF8);
             return;
         }
 
@@ -207,7 +263,7 @@ internal static class Program
             {
                 if (!tunnel.Start(cfg)) throw new Exception("隧道失败：" + tunnel.LastError);
                 cfg.DbHost = "127.0.0.1";
-                cfg.DbPort = cfg.LocalPort;
+                cfg.DbPort = tunnel.LocalPort;
             }
 
             var db = new Db(cfg);
@@ -312,8 +368,9 @@ internal static class Program
             {
                 if (!tunnel.Start(cfg)) throw new Exception(tunnel.LastError);
                 cfg.DbHost = "127.0.0.1";
-                cfg.DbPort = cfg.LocalPort;
-                return $"127.0.0.1:{cfg.LocalPort} 已转发 · 私钥来自：{tunnel.KeySource}";
+                cfg.DbPort = tunnel.LocalPort;
+                return $"127.0.0.1:{tunnel.LocalPort} 已转发 · 私钥来自：{tunnel.KeySource}" +
+                       (string.IsNullOrEmpty(tunnel.LastNote) ? "" : $" · {tunnel.LastNote}");
             });
         }
 

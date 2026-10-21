@@ -1453,14 +1453,16 @@ public class MainForm : Form
                     Log("自动连接失败：SSH 隧道建立不了 —— " + _tunnel.LastError);
                     return;
                 }
+                // 用隧道「实际」绑定的端口：首选端口被占用时会自动顺延，不能写死 _cfg.LocalPort
                 _cfg.DbHost = "127.0.0.1";
-                _cfg.DbPort = _cfg.LocalPort;
+                _cfg.DbPort = _tunnel.LocalPort;
+                if (!string.IsNullOrEmpty(_tunnel.LastNote)) Log(_tunnel.LastNote);
             }
 
             var ver = _db.TestConnection();
 
             SetState(true);
-            Log($"自动连接成功（{ver}）" + (_cfg.UseTunnel ? $" · 隧道 127.0.0.1:{_cfg.LocalPort}" : ""));
+            Log($"自动连接成功（{ver}）" + (_cfg.UseTunnel ? $" · 隧道 127.0.0.1:{_tunnel.LocalPort}" : ""));
 
             LoadCategories();
             SearchChars(false);              // 顺手把角色列表拉出来，省得用户先点搜索

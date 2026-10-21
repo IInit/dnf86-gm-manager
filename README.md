@@ -57,4 +57,5 @@ DNF86GM.exe --uitest       # 候选列表点选与回填
 DNF86GM.exe --facetest     # 子类型维度切换与组合
 DNF86GM.exe --statetest    # 自动连接 / 选角 / 金币校验
 DNF86GM.exe --pwtest       # 访问密码弹窗与改密
+DNF86GM.exe --porttest     # 本地端口被占用时能否自动顺延（WinSock 10048）
 ```
