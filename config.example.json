@@ -1,0 +1,16 @@
+{
+  "UseTunnel": true,
+  "SshHost": "",
+  "SshPort": 22,
+  "SshUser": "root",
+  "SshKeyPath": "",
+  "LocalPort": 3307,
+  "RemotePort": 3000,
+  "DbHost": "127.0.0.1",
+  "DbPort": 3307,
+  "DbUser": "root",
+  "DbPassword": "",
+  "SenderName": "GM",
+  "LetterText": "GM 赠礼，请查收。",
+  "SettingsPasswordHash": ""
+}
