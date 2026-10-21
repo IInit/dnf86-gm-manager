@@ -45,6 +45,9 @@ dotnet publish -c Release -r win-x64 --self-contained false \
 `items.json` 由 `tools/extract_items.py` 从游戏 `Script.pvf` 解析生成（读取一次约 3 秒），
 字段与维度划分见 [`使用说明.md`](使用说明.md)。
 
+## 软件截图
+<img width="612" height="778" alt="image" src="https://github.com/user-attachments/assets/d63dbaff-ee1e-49c6-bcba-638a4b01b3ba" />
+
 ## 文档
 
 完整使用说明、维度数据结构和踩坑记录都在 [`使用说明.md`](使用说明.md)。
